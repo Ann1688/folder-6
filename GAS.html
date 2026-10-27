@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPS 位置回報系統</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome 圖示 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Inter 字體 -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .animate-pulse-slow {
+      animation: pulse-ring 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col justify-between p-4 sm:p-6 md:p-8">
+
+  <!-- 主要容器 -->
+  <main class="max-w-md mx-auto w-full bg-white rounded-2xl shadow-xl shadow-slate-200/60 overflow-hidden border border-slate-100 my-auto">
+    
+    <!-- 頂部 Header -->
+    <header class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center relative overflow-hidden">
+      <div class="absolute -right-6 -bottom-6 opacity-10 text-8xl">
+        <i class="fa-solid me-1 fa-location-dot"></i>
+      </div>
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/20 backdrop-blur-md mb-3 text-white text-xl">
+        <i class="fa-solid fa-location-crosshairs"></i>
+      </div>
+      <h1 class="text-2xl font-bold tracking-tight">GPS 定位回報系統</h1>
+      <p class="text-blue-100 text-xs mt-1">快速、精準的即時位置回報工具</p>
+    </header>
+
+    <!-- 表單與內容區域 -->
+    <div class="p-6 space-y-5">
+
+      <!-- 訊息提醒區塊 (預設隱藏或動態顯示) -->
+      <div id="statusAlert" class="hidden p-4 rounded-xl text-sm transition-all duration-300 flex items-start space-x-3">
+        <i id="statusIcon" class="fa-solid text-lg mt-0.5 shrink-0"></i>
+        <div class="flex-1">
+          <h4 id="statusTitle" class="font-semibold mb-0.5"></h4>
+          <p id="statusDesc" class="text-xs leading-relaxed opacity-90"></p>
+        </div>
+      </div>
+
+      <!-- 表單本體 -->
+      <form id="reportForm" onsubmit="return false;" class="space-y-4">
+        
+        <!-- 團隊編號 -->
+        <div>
+          <label for="teamCode" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+            團隊編號 <span class="text-rose-500">*</span>
+          </label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i class="fa-solid fa-users text-sm"></i>
+            </div>
+            <input 
+              type="text" 
+              id="teamCode" 
+              required
+              placeholder="例如：TEAM-A01" 
+              class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+            >
+          </div>
+        </div>
+
+        <!-- 姓名暱稱 -->
+        <div>
+          <label for="userName" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+            姓名 / 暱稱 <span class="text-slate-400 font-normal">(選填)</span>
+          </label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i class="fa-solid fa-user text-sm"></i>
+            </div>
+            <input 
+              type="text" 
+              id="userName" 
+              placeholder="例如：王小明" 
+              class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+            >
+          </div>
+        </div>
+
+        <!-- API URL 設置 -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label for="apiUrl" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+              後端 API 網址 (GAS Web App)
+            </label>
+            <button type="button" onclick="toggleApiTip()" class="text-xs text-blue-600 hover:text-blue-700 focus:outline-none">
+              <i class="fa-regular fa-circle-question"></i> 設置說明
+            </button>
+          </div>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+              <i class="fa-solid fa-link text-sm"></i>
+            </div>
+            <input 
+              type="url" 
+              id="apiUrl" 
+              placeholder="https://script.google.com/macros/s/AKfycbyIYx4St-Qb3fmMENMApg48cb3imFh_85x_r3cohVSUFRV-OfXySHDCo4nNjKQHxWe3/exec" 
+              class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-xs font-mono text-slate-600"
+            >
+          </div>
+          <!-- 展開說明說明卡片 -->
+          <div id="apiTip" class="hidden mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
+            <p class="font-semibold"><i class="fa-solid fa-lightbulb text-amber-500"></i> Google Apps Script 貼心提醒：</p>
+            <p>1. 部署時專案類型請選擇「Web 應用程式」。</p>
+            <p>2. 執行身分設為「我」，存取權限請設為「所有人 (Anyone)」。</p>
+          </div>
+        </div>
+
+        <!-- 提交按鈕 -->
+        <button 
+          type="button" 
+          id="submitBtn" 
+          onclick="handleReportLocation()"
+          class="w-full mt-2 py-3.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+        >
+          <i id="btnIcon" class="fa-solid fa-paper-plane"></i>
+          <span id="btnText">取得位置並送出</span>
+        </button>
+      </form>
+
+      <!-- 最近一次成功回報紀錄 -->
+      <div id="lastReportBox" class="hidden mt-6 pt-5 border-t border-slate-100 space-y-3">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+          <span><i class="fa-solid fa-clock-rotate-left mr-1"></i> 最近回報記錄</span>
+          <span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-normal">已回報</span>
+        </h3>
+        
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 text-xs space-y-2">
+          <div class="flex justify-between border-b border-slate-200/60 pb-1.5">
+            <span class="text-slate-500">團隊 / 姓名：</span>
+            <span id="recTeam" class="font-medium text-slate-800"></span>
+          </div>
+          <div class="flex justify-between border-b border-slate-200/60 pb-1.5">
+            <span class="text-slate-500">經緯度：</span>
+            <span id="recLatLng" class="font-mono text-blue-600 font-medium"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">時間 (Taipei)：</span>
+            <span id="recTime" class="font-mono text-slate-700"></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 頁尾 Device UUID 資訊 -->
+    <footer class="bg-slate-50 border-t border-slate-100 px-6 py-3.5 flex items-center justify-between text-[11px] text-slate-400">
+      <span class="truncate pr-2">
+        <i class="fa-solid fa-mobile-screen mr-1"></i> UUID: <span id="uuidDisplay" class="font-mono text-slate-500">載入中...</span>
+      </span>
+      <button onclick="copyUuid()" title="複製 UUID" class="text-slate-400 hover:text-blue-600 focus:outline-none shrink-0">
+        <i class="fa-regular fa-copy"></i>
+      </button>
+    </footer>
+  </main>
+
+  <!-- Google Apps Script 後端程式範例說明Modal/提示 (底部) -->
+  <footer class="max-w-md mx-auto w-full mt-6 text-center text-xs text-slate-400 space-y-2">
+    <p>© 2026 GPS Location Reporter. All rights reserved.</p>
+    <details class="text-left bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <summary class="cursor-pointer text-slate-600 font-medium hover:text-blue-600 transition-colors">
+        <i class="fa-solid fa-code mr-1"></i> 檢視 Google Apps Script 後端接收範例碼
+      </summary>
+      <div class="mt-3 space-y-2">
+        <p class="text-slate-500 text-[11px]">請將以下程式碼貼入 GAS 編輯器（`Code.gs`），並部署為 Web App：</p>
+        <pre class="bg-slate-900 text-slate-100 p-3 rounded-lg text-[10px] font-mono overflow-x-auto leading-relaxed">
+function doPost(e) {
+  try {
+    // 解包 JSON 資料 (因 no-cors，資料在 e.postData.contents)
+    var data = JSON.parse(e.postData.contents);
+    
+    // 取得試算表 (範例寫入第一個 Sheet)
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    
+    // 寫入欄位：團隊編號, UUID, 姓名, 緯度, 經度, 時間
+    sheet.appendRow([
+      data.teamCode,
+      data.uuid,
+      data.name || '',
+      data.latitude,
+      data.longitude,
+      data.timestamp
+    ]);
+    
+    return ContentService.createTextOutput("Success");
+  } catch (err) {
+    return ContentService.createTextOutput("Error: " + err.toString());
+  }
+}</pre>
+      </div>
+    </details>
+  </footer>
+
+  <!-- JavaScript 邏輯處理 -->
+  <script>
+    // 預設與常數
+    const STORAGE_KEY_UUID = 'device_uuid';
+    const STORAGE_KEY_API_URL = 'gas_api_url';
+    const STORAGE_KEY_TEAM = 'team_code';
+    const STORAGE_KEY_NAME = 'user_name';
+
+    // 頁面載入初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      initDeviceUUID();
+      loadSavedFormData();
+    });
+
+    /**
+     * 初始化或取得 Device UUID
+     */
+    function initDeviceUUID() {
+      let uuid = localStorage.getItem(STORAGE_KEY_UUID);
+      if (!uuid) {
+        uuid = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+          ? crypto.randomUUID() 
+          : generateFallbackUUID();
+        localStorage.setItem(STORAGE_KEY_UUID, uuid);
+      }
+      document.getElementById('uuidDisplay').innerText = uuid;
+    }
+
+    /**
+     * 備用 UUID 產生器 (相容舊版瀏覽器)
+     */
+    function generateFallbackUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    /**
+     * 載入上次儲存的表單資訊
+     */
+    function loadSavedFormData() {
+      const savedApiUrl = localStorage.getItem(STORAGE_KEY_API_URL);
+      const savedTeam = localStorage.getItem(STORAGE_KEY_TEAM);
+      const savedName = localStorage.getItem(STORAGE_KEY_NAME);
+
+      if (savedApiUrl) document.getElementById('apiUrl').value = savedApiUrl;
+      if (savedTeam) document.getElementById('teamCode').value = savedTeam;
+      if (savedName) document.getElementById('userName').value = savedName;
+    }
+
+    /**
+     * 切換 API 提示顯示
+     */
+    function toggleApiTip() {
+      const tip = document.getElementById('apiTip');
+      tip.classList.toggle('hidden');
+    }
+
+    /**
+     * 複製 UUID 至剪貼簿
+     */
+    function copyUuid() {
+      const uuid = localStorage.getItem(STORAGE_KEY_UUID);
+      if (!uuid) return;
+      
+      const tempInput = document.createElement("input");
+      tempInput.value = uuid;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+
+      showAlert('success', '已複製 UUID', '裝置識別碼已成功複製至剪貼簿');
+    }
+
+    /**
+     * 格式化時間為 Asia/Taipei (YYYY/MM/DD HH:MM)
+     */
+    function getTaipeiFormattedTime() {
+      const now = new Date();
+      // 使用 Intl API 指定 Asia/Taipei 時區
+      const formatter = new Intl.DateTimeFormat('zh-TW', {
+        timeZone: 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+
+      const parts = formatter.formatToParts(now);
+      const p = {};
+      parts.forEach(part => p[part.type] = part.value);
+
+      // 組合成 YYYY/MM/DD HH:MM 格式
+      return `${p.year}/${p.month}/${p.day} ${p.hour}:${p.minute}`;
+    }
+
+    /**
+     * 核心流程：點擊按鈕回報位置
+     */
+    async function handleReportLocation() {
+      const teamCodeInput = document.getElementById('teamCode');
+      const userNameInput = document.getElementById('userName');
+      const apiUrlInput = document.getElementById('apiUrl');
+
+      const teamCode = teamCodeInput.value.trim();
+      const userName = userNameInput.value.trim();
+      const apiUrl = apiUrlInput.value.trim();
+
+      // 1. 驗證必填欄位
+      if (!teamCode) {
+        showAlert('error', '請輸入團隊編號', '「團隊編號」為必填欄位，請填寫後再試。');
+        teamCodeInput.focus();
+        return;
+      }
+
+      if (!apiUrl) {
+        showAlert('error', '請輸入 API 網址', '請提供後端 Google Apps Script Web App URL。');
+        apiUrlInput.focus();
+        return;
+      }
+
+      // 儲存常用欄位至 LocalStorage 方便下次使用
+      localStorage.setItem(STORAGE_KEY_TEAM, teamCode);
+      localStorage.setItem(STORAGE_KEY_NAME, userName);
+      localStorage.setItem(STORAGE_KEY_API_URL, apiUrl);
+
+      // 2. 切換 UI 狀態 -> 定位中
+      setButtonState('locating');
+      showAlert('info', '正在取得 GPS 位置...', '請在瀏覽器彈窗中允許位置權限。');
+
+      try {
+        // 3. 取得經緯度 (精確度至小數點後 6 位)
+        const position = await getCurrentLocation();
+        const rawLat = position.coords.latitude;
+        const rawLng = position.coords.longitude;
+
+        const latitude = parseFloat(rawLat.toFixed(6));
+        const longitude = parseFloat(rawLng.toFixed(6));
+        const timestamp = getTaipeiFormattedTime();
+        const uuid = localStorage.getItem(STORAGE_KEY_UUID);
+
+        // 4. 切換 UI 狀態 -> 傳送中
+        setButtonState('sending');
+        showAlert('info', '資料發送中...', '正在將位置資訊傳送至伺服器...');
+
+        // 5. 封裝 JSON Payload
+        const payload = {
+          teamCode: teamCode,
+          uuid: uuid,
+          name: userName,
+          latitude: latitude,
+          longitude: longitude,
+          timestamp: timestamp
+        };
+
+        // 6. 發送 API (使用 mode: 'no-cors' 避免 GAS CORS 問題)
+        await fetch(apiUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        // 7. 成功處理 (no-cors 不會回傳可讀內容，無拋出 error 即視為成功送出)
+        setButtonState('success');
+        showAlert('success', '位置回報成功！', `已成功送出資料至指定 API。`);
+
+        // 更新最後回報紀錄區塊
+        updateLastReportDisplay(teamCode, userName, latitude, longitude, timestamp);
+
+      } catch (err) {
+        console.error('Report Error:', err);
+        setButtonState('reset');
+        
+        let errorMsg = err.message || '發生未知錯誤，請重試。';
+        if (err.code === 1) {
+          errorMsg = '使用者拒絕了地理位置存取權限。請於瀏覽器設定中開啟定位存取。';
+        } else if (err.code === 2) {
+          errorMsg = '無法取得當前位置，請確認 GPS 或網路連線是否正常。';
+        } else if (err.code === 3) {
+          errorMsg = '取得定位逾時，請至收訊良好處重試。';
+        }
+        
+        showAlert('error', '定位或發送失敗', errorMsg);
+      } finally {
+        // 延遲恢復按鈕狀態
+        setTimeout(() => {
+          setButtonState('reset');
+        }, 3000);
+      }
+    }
+
+    /**
+     * Promise 化 navigator.geolocation.getCurrentPosition
+     */
+    function getCurrentLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('您的瀏覽器不支援地理定位 (Geolocation) 功能。'));
+          return;
+        }
+
+        const options = {
+          enableHighAccuracy: true, // 啟用高精度定位
+          timeout: 15000,           // 超時時間 15 秒
+          maximumAge: 0             // 不使用快取
+        };
+
+        navigator.geolocation.getCurrentPosition(resolve, reject, options);
+      });
+    }
+
+    /**
+     * 更新 UI 按鈕狀態
+     */
+    function setButtonState(state) {
+      const btn = document.getElementById('submitBtn');
+      const icon = document.getElementById('btnIcon');
+      const text = document.getElementById('btnText');
+
+      switch (state) {
+        case 'locating':
+          btn.disabled = true;
+          icon.className = 'fa-solid fa-spinner fa-spin';
+          text.innerText = '📍 定位中...';
+          btn.className = btn.className.replace(/bg-\w+-600/, 'bg-amber-500');
+          break;
+
+        case 'sending':
+          btn.disabled = true;
+          icon.className = 'fa-solid fa-paper-plane fa-bounce';
+          text.innerText = '🚀 資料傳送中...';
+          btn.className = btn.className.replace(/bg-\w+-500/, 'bg-indigo-600');
+          break;
+
+        case 'success':
+          btn.disabled = true;
+          icon.className = 'fa-solid fa-circle-check';
+          text.innerText = '✅ 已送出！';
+          btn.className = btn.className.replace(/bg-\w+-600/, 'bg-emerald-600');
+          break;
+
+        case 'reset':
+        default:
+          btn.disabled = false;
+          icon.className = 'fa-solid fa-paper-plane';
+          text.innerText = '取得位置並送出';
+          btn.className = "w-full mt-2 py-3.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer";
+          break;
+      }
+    }
+
+    /**
+     * 顯示 statusAlert 提示訊息
+     */
+    function showAlert(type, title, message) {
+      const alertBox = document.getElementById('statusAlert');
+      const icon = document.getElementById('statusIcon');
+      const titleEl = document.getElementById('statusTitle');
+      const descEl = document.getElementById('statusDesc');
+
+      alertBox.classList.remove('hidden', 'bg-rose-50', 'text-rose-800', 'border-rose-200', 'bg-emerald-50', 'text-emerald-800', 'border-emerald-200', 'bg-blue-50', 'text-blue-800', 'border-blue-200');
+
+      if (type === 'error') {
+        alertBox.classList.add('bg-rose-50', 'text-rose-800', 'border', 'border-rose-200');
+        icon.className = 'fa-solid fa-circle-exclamation text-rose-500 text-lg mt-0.5 shrink-0';
+      } else if (type === 'success') {
+        alertBox.classList.add('bg-emerald-50', 'text-emerald-800', 'border', 'border-emerald-200');
+        icon.className = 'fa-solid fa-circle-check text-emerald-500 text-lg mt-0.5 shrink-0';
+      } else { // info
+        alertBox.classList.add('bg-blue-50', 'text-blue-800', 'border', 'border-blue-200');
+        icon.className = 'fa-solid fa-circle-info text-blue-500 text-lg mt-0.5 shrink-0';
+      }
+
+      titleEl.innerText = title;
+      descEl.innerText = message;
+    }
+
+    /**
+     * 更新最後一次成功回報紀錄
+     */
+    function updateLastReportDisplay(team, name, lat, lng, time) {
+      const box = document.getElementById('lastReportBox');
+      document.getElementById('recTeam').innerText = name ? `${team} (${name})` : team;
+      document.getElementById('recLatLng').innerText = `${lat}, ${lng}`;
+      document.getElementById('recTime').innerText = time;
+      box.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
